@@ -10,4 +10,132 @@ if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
   source "${ZDOTDIR:-$HOME}/.zprezto/init.zsh"
 fi
 
-# Customize to your needs...
+# pyenv init adds a local command (in addition to prepending path), so it needs
+# to be sourced in all new shells, i.e., here and not zprofile, even though it
+# also modifies path.
+if [ -d "$HOME/.pyenv" ]; then
+  export PYENV_ROOT="$HOME/.pyenv"
+  path=($PYENV_ROOT/bin $path)
+  eval "$(pyenv init --path)"
+fi
+
+# Prepend homedir bin last, for top priority
+# Normally paths should be set in zprofile, but we need this to take priority
+# over pyenv above.
+path=($HOME/bin $path)
+
+# Tab completions and key bindings
+if [ -f '/usr/share/fzf/key-bindings.zsh' ]; then source /usr/share/fzf/key-bindings.zsh; fi
+if [ -f '/usr/share/fzf/completion.zsh' ]; then source /usr/share/fzf/completion.zsh; fi
+if [ -f '/home/kvikshaug/.travis/travis.sh' ]; then source /home/kvikshaug/.travis/travis.sh; fi
+
+# Shortcuts and defaults
+alias l='ls'
+alias ls='ls -lh --color=auto --group-directories-first'
+alias mv='mv -v'
+alias cp='cp -v'
+alias rm='rm -vi'
+alias rmdir='rmdir -v'
+alias ssh='ssh -v'
+alias ln='ln -v'
+alias cal='cal -m'
+alias mkcd='mkdcd'
+alias netstat='netstat --numeric --inet --program'
+alias pm='sudo pacman'
+alias netctl='sudo netctl'
+alias wifi-menu='sudo wifi-menu'
+alias m='mpv'
+alias iftop='sudo iftop'
+alias gitk='gitk --all'
+alias tig='tig --all'
+alias dc='docker-compose'
+alias dcr='docker-compose run --rm'
+alias vcs='npx vue-cli-service'
+alias anton='ssh -t anton tmux -u at'
+alias marvin='ssh -t marvin tmux -u at'
+alias s='subl . && exit'
+alias c='code .'
+alias sudo="sudo -E "  # intentional trailing space
+
+#
+# Utilities
+#
+
+function clipboard-history() { ~/bin/wl-clipboard-history -c }
+zle -N ch clipboard-history
+
+bindkey "^H" ch
+
+function record_screen_full() {
+  wf-recorder
+}
+
+function record_screen_section() {
+  wf-recorder -g "$(slurp)"
+}
+
+function record_video() {
+  ffmpeg -f v4l2 -s 640x480 -i /dev/video0 out.mpg
+}
+
+function webcam() {
+  mpv av://v4l2:/dev/video0
+}
+
+function weechat() {
+  ssh -t spittle "tmux -u at"
+  exit
+}
+
+function git-deploy() {
+  if [ $# -lt 2 ]; then
+    echo "usage: git-deploy [remote] [deployment-branch]"
+    echo
+    echo "1. Merges the feature (current) branch to deployment branch locally"
+    echo "2. Pushes deployment branch to remote"
+    echo "3. Deletes feature branch locally and on remote"
+    return 1
+  fi
+
+  BRANCH=$(git branch --show-current)
+  REMOTE=$1
+  DEPBRANCH=$2
+
+  if [ "${BRANCH}" = "${DEPBRANCH}" ]; then
+    echo "error: cannot deploy branch ${BRANCH} to itself"
+    return 1
+  fi
+
+  git remote | grep -q "${REMOTE}"
+  if [ ! $? -eq 0 ]; then
+    echo "error: remote ${REMOTE} doesn't exist"
+    return 1
+  fi
+
+  git branch -r | grep -q "${REMOTE}/${BRANCH}"
+  if [ ! $? -eq 0 ]; then
+    echo "error: branch ${BRANCH} doesn't exist at remote ${REMOTE}"
+    return 1
+  fi
+
+  git branch -r | grep -q "${REMOTE}/${DEPBRANCH}"
+  if [ ! $? -eq 0 ]; then
+    echo "error: branch ${DEPBRANCH} doesn't exist at remote ${REMOTE}"
+    return 1
+  fi
+
+  echo -n "Deploy branch ${BRANCH} to ${REMOTE}/${DEPBRANCH}? "
+  read confirm
+  if [ "${confirm}" != "y" ]; then
+    return 0;
+  fi
+
+  git checkout ${DEPBRANCH} \
+    && git merge ${BRANCH} \
+    && git push ${REMOTE} \
+    && git br -d ${BRANCH} \
+    && git push ${REMOTE} --delete ${BRANCH}
+}
+
+# Source machine-local environment, if any
+if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/runcoms/zshrc.local" ]]; then source "${ZDOTDIR:-$HOME}/.zprezto/runcoms/zshrc.local"; fi

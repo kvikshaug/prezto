@@ -6,19 +6,20 @@
 #
 
 #
-# Browser
+# Wayland
 #
 
-if [[ "$OSTYPE" == darwin* ]]; then
-  export BROWSER='open'
-fi
+export MOZ_ENABLE_WAYLAND=1
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=sway
+export QT_QPA_PLATFORM=wayland
 
 #
 # Editors
 #
 
-export EDITOR='nano'
-export VISUAL='nano'
+export EDITOR='vim'
+export VISUAL='vim'
 export PAGER='less'
 
 #
@@ -46,6 +47,19 @@ path=(
   /usr/local/{bin,sbin}
   $path
 )
+
+# rubygems
+if [ $commands[gem] ]; then
+  path=($(gem env gempath | sed 's/:/\/bin:/' | sed 's/$/\/bin/') $path)
+fi
+
+# npm global packages
+if [ -d "$HOME/.npm-global" ]; then
+  path=("$HOME/.npm-global/bin" $path)
+fi
+
+# Non-reparenting window manager for Java
+export _JAVA_AWT_WM_NONREPARENTING=1
 
 #
 # Less
